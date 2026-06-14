@@ -1,6 +1,7 @@
-import type { GameSaveData, Ship, Upgrade, GameConfig, BattleRecord, GameStats } from '../types';
+import type { GameSaveData, Ship, Upgrade, GameConfig, BattleRecord, GameStats, EmergencyCommand } from '../types';
 import { createDefaultShip, createDefaultUpgrades } from '../data/defaultShip';
 import { defaultConfig } from '../data/defaultConfig';
+import { defaultEmergencyCommands } from '../data/defaultCommands';
 
 const STORAGE_KEY = 'starship_dice_commander_save';
 
@@ -24,6 +25,7 @@ export function createDefaultSaveData(): GameSaveData {
     battleHistory: [],
     stats: { ...defaultStats },
     rewardPoints: 0,
+    emergencyCommands: JSON.parse(JSON.stringify(defaultEmergencyCommands)),
   };
 }
 
@@ -50,7 +52,7 @@ export function saveSaveData(data: GameSaveData): void {
 
 function validateSaveData(data: GameSaveData): GameSaveData {
   const defaults = createDefaultSaveData();
-  
+
   return {
     ship: { ...defaults.ship, ...data.ship, cabins: data.ship.cabins || defaults.ship.cabins },
     upgrades: data.upgrades && data.upgrades.length > 0 ? data.upgrades : defaults.upgrades,
@@ -58,6 +60,9 @@ function validateSaveData(data: GameSaveData): GameSaveData {
     battleHistory: data.battleHistory || [],
     stats: { ...defaults.stats, ...data.stats },
     rewardPoints: typeof data.rewardPoints === 'number' ? data.rewardPoints : 0,
+    emergencyCommands: data.emergencyCommands && data.emergencyCommands.length > 0
+      ? data.emergencyCommands
+      : defaults.emergencyCommands,
   };
 }
 
@@ -144,4 +149,20 @@ export function importSaveData(jsonString: string): boolean {
     console.error('Failed to import save data:', e);
     return false;
   }
+}
+
+export function saveEmergencyCommands(commands: EmergencyCommand[]): void {
+  const data = loadSaveData();
+  data.emergencyCommands = commands;
+  saveSaveData(data);
+}
+
+export function loadEmergencyCommands(): EmergencyCommand[] {
+  return loadSaveData().emergencyCommands;
+}
+
+export function resetEmergencyCommands(): EmergencyCommand[] {
+  const defaults = JSON.parse(JSON.stringify(defaultEmergencyCommands)) as EmergencyCommand[];
+  saveEmergencyCommands(defaults);
+  return defaults;
 }

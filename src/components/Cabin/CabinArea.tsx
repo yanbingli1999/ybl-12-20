@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDiceStore } from '../../store/useDiceStore';
 import { useShipStore } from '../../store/useShipStore';
+import { useEmergencyCommandsStore } from '../../store/useEmergencyCommandsStore';
 import { CabinSlot } from './CabinSlot';
 import type { CabinType } from '../../types';
 
@@ -11,8 +12,10 @@ interface CabinAreaProps {
 export const CabinArea: React.FC<CabinAreaProps> = ({ disabled }) => {
   const { dice, assignDie } = useDiceStore();
   const { ship } = useShipStore();
+  const { isCabinDisabled, getHighlightedCabins } = useEmergencyCommandsStore();
 
   const handleDrop = (cabinType: CabinType, dieId: string) => {
+    if (isCabinDisabled(cabinType)) return;
     assignDie(dieId, cabinType);
   };
 
@@ -29,6 +32,7 @@ export const CabinArea: React.FC<CabinAreaProps> = ({ disabled }) => {
   };
 
   const cabinOrder: CabinType[] = ['engine', 'shield', 'weapon', 'repair', 'scanner'];
+  const highlightedCabins = getHighlightedCabins();
 
   return (
     <div className="glass-panel neon-border p-6 rounded-xl">
@@ -47,7 +51,9 @@ export const CabinArea: React.FC<CabinAreaProps> = ({ disabled }) => {
               totalPoints={getTotalPoints(cabinType)}
               onDrop={handleDrop}
               onRemoveDie={handleRemoveDie}
-              disabled={disabled}
+              disabled={disabled || isCabinDisabled(cabinType)}
+              forceDisabled={isCabinDisabled(cabinType)}
+              highlighted={highlightedCabins.includes(cabinType)}
             />
           );
         })}

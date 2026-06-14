@@ -174,6 +174,7 @@ export interface GameSaveData {
   battleHistory: BattleRecord[];
   stats: GameStats;
   rewardPoints: number;
+  emergencyCommands: EmergencyCommand[];
 }
 
 export interface DiceFace {
@@ -195,4 +196,53 @@ export interface DamageResult {
   shieldAbsorbed: number;
   isCrit: boolean;
   isMiss: boolean;
+}
+
+export type CommandConditionType =
+  | 'hp_below_percent'
+  | 'enemy_intent_type'
+  | 'weapon_near_overheat'
+  | 'shield_below_percent'
+  | 'energy_below_percent';
+
+export type CommandActionType =
+  | 'prioritize_shield'
+  | 'prioritize_engine'
+  | 'prioritize_repair'
+  | 'prioritize_weapon'
+  | 'warn_weapon_overheat'
+  | 'warn_high_damage'
+  | 'suggest_scan';
+
+export type CommandUIFeedbackType = 'alert' | 'warning' | 'info' | 'disable_cabin' | 'highlight_cabin';
+
+export interface CommandCondition {
+  type: CommandConditionType;
+  value: number;
+  intentType?: EnemyIntentType;
+}
+
+export interface CommandAction {
+  type: CommandActionType;
+  cabinType?: CabinType;
+}
+
+export interface EmergencyCommand {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  condition: CommandCondition;
+  action: CommandAction;
+  feedback: CommandUIFeedbackType;
+}
+
+export interface ActiveCommandAlert {
+  commandId: string;
+  commandName: string;
+  message: string;
+  feedback: CommandUIFeedbackType;
+  priority: number;
+  targetCabin?: CabinType;
+  disableCabin?: CabinType;
 }

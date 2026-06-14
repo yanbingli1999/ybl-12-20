@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Flag, SkipForward, RotateCcw, Trophy, Skull } from 'lucide-react';
+import { Play, Flag, SkipForward, RotateCcw, Trophy, Skull, AlertTriangle, AlertCircle, Bell, Lock, Highlighter, X } from 'lucide-react';
 import { DiceArea } from '../components/Dice/DiceArea';
 import { CabinArea } from '../components/Cabin/CabinArea';
 import { ShipStatus } from '../components/Ship/ShipStatus';
@@ -10,28 +10,105 @@ import { Modal } from '../components/UI/Modal';
 import { useGameStore } from '../store/useGameStore';
 import { useDiceStore } from '../store/useDiceStore';
 import { useShipStore } from '../store/useShipStore';
+import { useConfigStore } from '../store/useConfigStore';
+import { useEmergencyCommandsStore } from '../store/useEmergencyCommandsStore';
 import { hasAnyDiceAssigned } from '../utils/dice';
+import type { CommandUIFeedbackType } from '../types';
 
 export const BattlePage: React.FC = () => {
-  const { 
-    battleState, 
+  const {
+    battleState,
     currentDifficulty,
-    startBattle, 
-    confirmTurn, 
-    fleeBattle, 
+    startBattle,
+    confirmTurn,
+    fleeBattle,
     resetBattle,
     setDifficulty,
     isReplaying,
   } = useGameStore();
   const { dice } = useDiceStore();
-  const { rewardPoints, addRewardPoints } = useShipStore();
+  const { rewardPoints } = useShipStore();
+  const { config } = useConfigStore();
+  const {
+    activeAlerts,
+    evaluateCommands,
+    clearAlerts,
+    loadCommands
+  } = useEmergencyCommandsStore();
   const [showResultModal, setShowResultModal] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadCommands();
+  }, [loadCommands]);
+
+  useEffect(() => {
+    if (battleState && battleState.phase === 'player' && battleState.result === 'ongoing') {
+      evaluateCommands(battleState, dice, config);
+    } else if (!battleState || battleState.result !== 'ongoing') {
+      clearAlerts();
+      setDismissedAlerts(new Set());
+    }
+  }, [battleState, dice, config, evaluateCommands, clearAlerts]);
 
   useEffect(() => {
     if (battleState && battleState.result !== 'ongoing') {
       setShowResultModal(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleState?.result]);
+
+  const dismissAlert = (alertId: string) => {
+    setDismissedAlerts(prev => new Set(prev).add(alertId));
+  };
+
+  const visibleAlerts = activeAlerts.filter(a => !dismissedAlerts.has(a.commandId));
+
+  const getAlertStyle = (feedback: CommandUIFeedbackType) => {
+    switch (feedback) {
+      case 'alert':
+        return {
+          bg: 'bg-neon-red/20',
+          border: 'border-neon-red',
+          text: 'text-neon-red',
+          icon: AlertCircle,
+          animation: 'animate-pulse',
+        };
+      case 'disable_cabin':
+        return {
+          bg: 'bg-neon-orange/20',
+          border: 'border-neon-orange',
+          text: 'text-neon-orange',
+          icon: Lock,
+          animation: '',
+        };
+      case 'warning':
+        return {
+          bg: 'bg-neon-yellow/20',
+          border: 'border-neon-yellow',
+          text: 'text-neon-yellow',
+          icon: AlertTriangle,
+          animation: '',
+        };
+      case 'highlight_cabin':
+        return {
+          bg: 'bg-neon-green/20',
+          border: 'border-neon-green',
+          text: 'text-neon-green',
+          icon: Highlighter,
+          animation: '',
+        };
+      case 'info':
+      default:
+        return {
+          bg: 'bg-neon-blue/20',
+          border: 'border-neon-blue',
+          text: 'text-neon-blue',
+          icon: Bell,
+          animation: '',
+        };
+    }
+  };
 
   const handleStartBattle = () => {
     startBattle();
@@ -89,7 +166,7 @@ export const BattlePage: React.FC = () => {
           <p className="text-gray-400 mb-6">
             选择难度，开始你的太空冒险！
           </p>
-          
+
           <div className="mb-6">
             <label className="block text-sm text-gray-400 mb-2">难度选择</label>
             <div className="flex gap-2 justify-center">
@@ -111,8 +188,8 @@ export const BattlePage: React.FC = () => {
             </div>
             <p className="text-xs text-gray-500 mt-2">
               当前: 难度 {currentDifficulty} - {
-                currentDifficulty <= 2 ? '新手' : 
-                currentDifficulty <= 3 ? '普通' : 
+                currentDifficulty <= 2 ? '新手' :
+                currentDifficulty <= 3 ? '普通' :
                 currentDifficulty <= 4 ? '困难' : '地狱'
               }
             </p>
@@ -140,7 +217,56 @@ export const BattlePage: React.FC = () => {
   return (
     <div className="relative">
       <FloatingText logs={battleState.logs} />
-      
+
+      {visibleAlerts.length > 0 && battleState.phase === 'player' && (
+        <div className="mb-4 space-y-2">
+          {visibleAlerts.map((alert) => {
+            const style = getAlertStyle(alert.feedback);
+            const Icon = style.icon;
+            return (
+              <div
+                key={alert.commandId}
+                className={`
+                  relative glass-panel rounded-lg p-4 border-2
+                  ${style.bg} ${style.border} ${style.animation}
+                `}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${style.bg} border ${style.border} flex-shrink-0`}>
+                    <Icon className={`w-6 h-6 ${style.text}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-display font-bold ${style.text} mb-1`}>
+                      [紧急指令] {alert.commandName}
+                    </div>
+                    <div className={`text-sm ${style.text} opacity-90`}>
+                      {alert.message}
+                    </div>
+                    {alert.feedback === 'disable_cabin' && alert.disableCabin && (
+                      <div className={`text-xs ${style.text} mt-2 font-bold`}>
+                        ⚠️ 已自动禁用向对应舱位继续分配骰子，防止风险发生
+                      </div>
+                    )}
+                    {alert.feedback === 'highlight_cabin' && alert.targetCabin && (
+                      <div className={`text-xs ${style.text} mt-2 font-bold`}>
+                        💡 下方舱位分配区域已高亮标记建议优先的舱位
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissAlert(alert.commandId)}
+                    className={`p-1 rounded hover:bg-space-800/50 transition-colors flex-shrink-0 ${style.text} opacity-70 hover:opacity-100`}
+                    title="关闭此提示"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <div className="glass-panel px-4 py-2 rounded-lg">
@@ -155,6 +281,14 @@ export const BattlePage: React.FC = () => {
               {currentDifficulty}
             </span>
           </div>
+          {visibleAlerts.length > 0 && battleState.phase === 'player' && (
+            <div className="glass-panel px-4 py-2 rounded-lg border-neon-purple border">
+              <span className="text-gray-400 text-sm">活跃指令</span>
+              <span className="ml-2 text-lg font-display font-bold text-neon-purple">
+                {visibleAlerts.length}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -176,7 +310,7 @@ export const BattlePage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <ShipStatus ship={battleState.player} isPlayer={true} />
-        
+
         <div className="flex flex-col gap-4">
           <EnemyIntent enemy={battleState.enemy} />
           <div className="flex-1 flex items-center justify-center">
@@ -188,14 +322,14 @@ export const BattlePage: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <ShipStatus ship={battleState.enemy} isPlayer={false} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-4">
           <DiceArea disabled={!isPlayerPhase || isReplaying} />
-          
+
           {isPlayerPhase && !isReplaying && (
             <div className="flex justify-center gap-4">
               <button
@@ -212,7 +346,7 @@ export const BattlePage: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         <div className="space-y-4">
           <CabinArea disabled={!isPlayerPhase || isReplaying} />
         </div>

@@ -107,7 +107,7 @@ export const useShipStore = create<ShipState>((set, get) => ({
     const { ship, upgrades } = get();
     const baseShip = createDefaultShip();
     
-    let newShip = { ...ship };
+    const newShip = { ...ship };
     
     const hpUpgrade = upgrades.find(u => u.id === 'upgrade_hp');
     const shieldUpgrade = upgrades.find(u => u.id === 'upgrade_shield');

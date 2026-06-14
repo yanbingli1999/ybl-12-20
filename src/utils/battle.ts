@@ -21,7 +21,7 @@ export function calculateDamage(
   }
 
   let damage = baseDamage;
-  let isCrit = guaranteedCrit || Math.random() < attackerCritRate;
+  const isCrit = guaranteedCrit || Math.random() < attackerCritRate;
 
   if (isCrit) {
     damage *= config.critMultiplier;
@@ -276,8 +276,8 @@ export function executePlayerActions(
   energyUsed: number;
 } {
   const logs: BattleLogEntry[] = [];
-  let newPlayer = { ...player };
-  let newEnemy = { ...enemy };
+  const newPlayer = { ...player };
+  const newEnemy = { ...enemy };
   let totalDamageDealt = 0;
   let totalHealDone = 0;
   let totalShieldGained = 0;

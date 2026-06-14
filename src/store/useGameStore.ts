@@ -107,9 +107,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     const { dice } = diceStore;
     const wasDefending = battleState.enemy.intent.type === 'defend';
-    let originalDefense = battleState.enemy.defense;
+    const originalDefense = battleState.enemy.defense;
     
-    let preparedEnemy = { ...battleState.enemy };
+    const preparedEnemy = { ...battleState.enemy };
     if (wasDefending) {
       preparedEnemy.defense = preparedEnemy.defense + 0.2;
     }
