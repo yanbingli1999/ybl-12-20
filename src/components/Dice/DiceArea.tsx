@@ -2,6 +2,7 @@ import React from 'react';
 import { RefreshCw, Dices } from 'lucide-react';
 import { useDiceStore } from '../../store/useDiceStore';
 import { useConfigStore } from '../../store/useConfigStore';
+import { useEmergencyCommandsStore } from '../../store/useEmergencyCommandsStore';
 import { Dice } from './Dice';
 import type { CabinType } from '../../types';
 
@@ -9,9 +10,18 @@ interface DiceAreaProps {
   disabled?: boolean;
 }
 
+const cabinNames: Record<CabinType, string> = {
+  engine: '引擎舱',
+  shield: '护盾舱',
+  weapon: '武器舱',
+  repair: '维修舱',
+  scanner: '扫描舱',
+};
+
 export const DiceArea: React.FC<DiceAreaProps> = ({ disabled }) => {
   const { dice, rerollsRemaining, isRolling, roll, toggleDieLock, assignDie, unassignAll } = useDiceStore();
   const { config } = useConfigStore();
+  const { isCabinDisabled } = useEmergencyCommandsStore();
 
   const canRoll = !disabled && !isRolling && (rerollsRemaining > 0 || dice.every(d => d.value === 0));
 
@@ -29,6 +39,7 @@ export const DiceArea: React.FC<DiceAreaProps> = ({ disabled }) => {
   };
 
   const handleQuickAssign = (dieId: string, cabinType: CabinType) => {
+    if (isCabinDisabled(cabinType)) return;
     const die = dice.find(d => d.id === dieId);
     if (die && !die.locked && die.value > 0) {
       assignDie(dieId, cabinType);
@@ -73,16 +84,26 @@ export const DiceArea: React.FC<DiceAreaProps> = ({ disabled }) => {
             
             {die.value > 0 && !die.assignedTo && !die.locked && !disabled && (
               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
-                {(['engine', 'shield', 'weapon', 'repair', 'scanner'] as CabinType[]).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => handleQuickAssign(die.id, type)}
-                    className="w-6 h-6 text-xs rounded bg-space-700 hover:bg-space-600 border border-space-600"
-                    title={type}
-                  >
-                    {type[0].toUpperCase()}
-                  </button>
-                ))}
+                {(['engine', 'shield', 'weapon', 'repair', 'scanner'] as CabinType[]).map(type => {
+                  const cabinDisabled = isCabinDisabled(type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => handleQuickAssign(die.id, type)}
+                      disabled={cabinDisabled}
+                      className={`
+                        w-6 h-6 text-xs rounded border transition-all
+                        ${cabinDisabled
+                          ? 'bg-space-900 border-neon-orange/50 text-neon-orange opacity-50 cursor-not-allowed'
+                          : 'bg-space-700 hover:bg-space-600 border-space-600 text-white'
+                        }
+                      `}
+                      title={cabinDisabled ? `${cabinNames[type]} - 紧急指令禁用` : type}
+                    >
+                      {type[0].toUpperCase()}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
